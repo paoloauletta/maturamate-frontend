@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: 221 83% 53%;
+    --primary-light: 219 91% 65%;
+    --primary-dark: 224 76% 48%;
+    
+    --secondary: 270 95% 64%;
+    --secondary-light: 270 95% 75%;
+    --secondary-dark: 270 95% 58%;
+    
+    --accent: 162 81% 40%;
+    --accent-light: 161 94% 45%;
+    --accent-dark: 163 88% 32%;
+    
+    --success: 142 72% 50%;
+    --warning: 38 92% 50%;
+    --error: 0 91% 58%;
+    
+    --background: 0 0% 100%;
+    --foreground: 224 71% 4%;
+    
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm md:text-base font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm md:text-base font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors;
+  }
+  
+  .btn-outline {
+    @apply inline-flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm md:text-base font-medium bg-transparent hover:bg-muted transition-colors;
+  }
+  
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm md:text-base font-medium text-foreground hover:bg-muted transition-colors;
+  }
+  
+  .card {
+    @apply rounded-lg border border-border bg-card p-4 md:p-6 shadow-sm;
+  }
+  
+  .input {
+    @apply flex h-10 md:h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm md:text-base file:border-0 file:bg-transparent file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+}
+
+/* Solution section styles */
+.solution-section {
+  @apply space-y-6 text-base md:text-lg leading-relaxed;
+}
+
+.solution-section h2 {
+  @apply text-xl font-semibold mb-6 mt-8;
+}
+
+.solution-section h3 {
+  @apply text-lg font-medium mb-4 mt-6;
+}
+
+.solution-section p {
+  @apply mb-6 leading-relaxed;
+}
+
+.solution-section ul, 
+.solution-section ol {
+  @apply pl-6 mb-6 space-y-3;
+}
+
+.solution-section ul {
+  @apply list-disc;
+}
+
+.solution-section ol {
+  @apply list-decimal;
+}
+
+.solution-section li {
+  @apply pl-2;
+}
+
+/* LaTeX container styles */
+.latex-container {
+  @apply overflow-x-auto max-w-full py-6 px-4 md:px-6 space-y-6;
+}
+
+.latex-container p {
+  @apply mb-6;
+}
+
+/* Improve math display */
+.katex-display {
+  @apply my-8 !important;
+  @apply overflow-x-auto overflow-y-hidden;
+  @apply px-4;
+}
+
+.katex {
+  @apply text-[1.1em] md:text-[1.2em] !important;
+}
+
+/* Step-by-step solution */
+.solution-step {
+  @apply mb-8 last:mb-0;
+}
+
+.solution-step-header {
+  @apply font-medium text-lg mb-3;
+}
+
+.solution-step-content {
+  @apply pl-4 border-l-2 border-primary/20;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .katex-display {
+    @apply my-6 !important;
+    @apply px-2;
+  }
+  
+  .solution-section {
+    @apply text-sm leading-relaxed;
+  }
+  
+  .solution-step {
+    @apply mb-6;
+  }
+  
+  .solution-step-header {
+    @apply text-base;
+  }
+}
+
+/* Touch targets */
+@media (max-width: 768px) {
+  button, 
+  a {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  input, 
+  select, 
+  textarea {
+    @apply min-h-[44px];
+  }
+  
+  .nav-item {
+    @apply py-3 px-4;
+  }
+}
