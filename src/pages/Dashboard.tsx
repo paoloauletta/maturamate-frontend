@@ -2,17 +2,18 @@ import { useState } from 'react';
 import { BookOpen, BrainCircuit, ClipboardCheck, BarChart, Award, Star, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
-  const { user } = useUser();
+  const { user } = useAuth();
+  const userMetadata = user?.user_metadata || {};
 
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div>
         <h1 className="text-2xl font-bold mb-2">
-          Benvenuto, {user?.name}!
+          Benvenuto, {user?.email?.split('@')[0] || 'Studente'}!
         </h1>
         <p className="text-muted-foreground">
           Continua la tua preparazione per la maturità di matematica.
@@ -28,7 +29,7 @@ const Dashboard = () => {
               <Award size={18} />
             </div>
           </div>
-          <div className="text-2xl font-bold mb-1">{user?.progress.streak} giorni</div>
+          <div className="text-2xl font-bold mb-1">{userMetadata.streak || 0} giorni</div>
           <div className="text-xs text-muted-foreground">
             Continua così per mantenere il tuo streak!
           </div>
@@ -42,7 +43,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="text-2xl font-bold mb-1">
-            {user?.progress.completedExercises.length}
+            {userMetadata.completedExercises?.length || 0}
           </div>
           <div className="text-xs text-muted-foreground">
             Su un totale di 150 esercizi
@@ -57,7 +58,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="text-2xl font-bold mb-1">
-            {user?.progress.completedSimulations.length}
+            {userMetadata.completedSimulations?.length || 0}
           </div>
           <div className="text-xs text-muted-foreground">
             Simulazioni completate
@@ -71,7 +72,7 @@ const Dashboard = () => {
               <BrainCircuit size={18} />
             </div>
           </div>
-          <div className="text-2xl font-bold mb-1">{user?.aiCreditsRemaining}</div>
+          <div className="text-2xl font-bold mb-1">{userMetadata.aiCreditsRemaining || 10}</div>
           <div className="text-xs text-muted-foreground">
             Crediti rimanenti oggi
           </div>
@@ -136,21 +137,21 @@ const Dashboard = () => {
         </div>
         
         <div className="divide-y">
-          {user?.progress.completedExercises.slice(-3).map((exerciseId, index) => (
-            <div key={exerciseId} className="p-4 flex items-center">
+          {(userMetadata.recentActivity || []).slice(-3).map((activity: any, index: number) => (
+            <div key={index} className="p-4 flex items-center">
               <div className="h-8 w-8 rounded-full bg-success/10 text-success flex items-center justify-center mr-4">
                 <CheckCircle size={16} />
               </div>
               <div>
-                <div className="font-medium">Esercizio Completato</div>
+                <div className="font-medium">{activity.type}</div>
                 <div className="text-sm text-muted-foreground">
-                  Hai completato l'esercizio {exerciseId}
+                  {activity.description}
                 </div>
               </div>
             </div>
           ))}
 
-          {user?.progress.completedExercises.length === 0 && (
+          {(!userMetadata.recentActivity || userMetadata.recentActivity.length === 0) && (
             <div className="p-8 text-center text-muted-foreground">
               <BarChart size={32} className="mx-auto mb-2 text-muted-foreground/50" />
               <p>Nessuna attività recente</p>
@@ -166,21 +167,21 @@ const Dashboard = () => {
         </div>
         
         <div className="divide-y">
-          {user?.progress.savedExercises.slice(-3).map((exerciseId, index) => (
-            <div key={exerciseId} className="p-4 flex items-center">
+          {(userMetadata.savedExercises || []).slice(-3).map((exercise: any, index: number) => (
+            <div key={index} className="p-4 flex items-center">
               <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-4">
                 <Star size={16} />
               </div>
               <div>
-                <div className="font-medium">Esercizio Salvato</div>
+                <div className="font-medium">{exercise.title}</div>
                 <div className="text-sm text-muted-foreground">
-                  Hai salvato l'esercizio {exerciseId}
+                  {exercise.subject}
                 </div>
               </div>
             </div>
           ))}
 
-          {user?.progress.savedExercises.length === 0 && (
+          {(!userMetadata.savedExercises || userMetadata.savedExercises.length === 0) && (
             <div className="p-8 text-center text-muted-foreground">
               <Star size={32} className="mx-auto mb-2 text-muted-foreground/50" />
               <p>Nessun esercizio salvato</p>

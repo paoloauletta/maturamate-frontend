@@ -1,22 +1,95 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Star, CheckCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { exercises } from '../data/exercises';
+import { Exercise } from '../types/exercises';
+import { getExercises } from '../lib/supabase/exercises';
+
+const difficultyColors = {
+  facile: 'bg-success/20 text-success',
+  media: 'bg-warning/20 text-warning',
+  difficile: 'bg-error/20 text-error'
+};
 
 const Exercises = () => {
-  const { user } = useUser();
-  const [filter, setFilter] = useState<'all' | 'algebra' | 'geometry' | 'analysis' | 'probability'>('all');
-  const [difficulty, setDifficulty] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
+  const { user, isAuthenticated, toggleSavedExercise } = useUser();
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'Algebra' | 'Geometria' | 'Analisi' | 'Probabilità'>('all');
+  const [difficulty, setDifficulty] = useState<'all' | 'facile' | 'media' | 'difficile'>('all');
+
+  useEffect(() => {
+    const fetchExercises = async () => {
+      try {
+        // Only start loading when auth state is determined
+        if (!isAuthenticated) {
+          return;
+        }
+        setLoading(true);
+        setError(null);
+        const data = await getExercises();
+        setExercises(data);
+      } catch (err) {
+        console.error('Error fetching exercises:', err);
+        setError('Errore nel caricamento degli esercizi. Riprova più tardi.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExercises();
+  }, [isAuthenticated]);
 
   const filteredExercises = exercises.filter(ex => {
-    const matchesCategory = filter === 'all' ? true : ex.category === filter;
-    const matchesDifficulty = difficulty === 'all' ? true : ex.difficulty === difficulty;
+    const matchesCategory = filter === 'all' ? true : ex.subject === filter;
+    const matchesDifficulty = difficulty === 'all' ? true : ex.question_data.difficulty === difficulty;
     return matchesCategory && matchesDifficulty;
   });
 
   const isCompleted = (id: string) => user?.progress.completedExercises.includes(id) || false;
-  const isSaved = (id: string) => user?.progress.savedExercises.includes(id) || false;
+  const isSaved = (id: string) => user?.progress.savedExercises?.includes(id) || false;
+
+  const handleSaveClick = async (e: React.MouseEvent, exerciseId: string) => {
+    e.preventDefault(); // Prevent navigation
+    await toggleSavedExercise(exerciseId);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12 border border-dashed rounded-lg">
+        <BookOpen size={48} className="mx-auto mb-4 text-muted-foreground/50" />
+        <h3 className="text-lg font-medium mb-2">Errore</h3>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="btn-primary"
+        >
+          Riprova
+        </button>
+      </div>
+    );
+  }
+
+  if (exercises.length === 0) {
+    return (
+      <div className="text-center py-12 border border-dashed rounded-lg">
+        <BookOpen size={48} className="mx-auto mb-4 text-muted-foreground/50" />
+        <h3 className="text-lg font-medium mb-2">Nessun esercizio trovato</h3>
+        <p className="text-muted-foreground mb-4">
+          Non ci sono esercizi disponibili al momento.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -32,7 +105,7 @@ const Exercises = () => {
         <div className="flex-1">
           <h2 className="text-sm font-medium mb-2">Categoria</h2>
           <div className="flex flex-wrap gap-2">
-            {['all', 'algebra', 'geometry', 'analysis', 'probability'].map((category) => (
+            {['all', 'Algebra', 'Geometria', 'Analisi', 'Probabilità'].map((category) => (
               <button
                 key={category}
                 onClick={() => setFilter(category as any)}
@@ -42,10 +115,7 @@ const Exercises = () => {
                     : 'border-border hover:border-primary/50 transition-colors'
                 }`}
               >
-                {category === 'all' ? 'Tutti' :
-                 category === 'algebra' ? 'Algebra' :
-                 category === 'geometry' ? 'Geometria' :
-                 category === 'analysis' ? 'Analisi' : 'Probabilità'}
+                {category === 'all' ? 'Tutti' : category}
               </button>
             ))}
           </div>
@@ -54,7 +124,7 @@ const Exercises = () => {
         <div className="flex-1">
           <h2 className="text-sm font-medium mb-2">Difficoltà</h2>
           <div className="flex flex-wrap gap-2">
-            {['all', 'easy', 'medium', 'hard'].map((level) => (
+            {['all', 'facile', 'media', 'difficile'].map((level) => (
               <button
                 key={level}
                 onClick={() => setDifficulty(level as any)}
@@ -64,9 +134,7 @@ const Exercises = () => {
                     : 'border-border hover:border-primary/50 transition-colors'
                 }`}
               >
-                {level === 'all' ? 'Tutte' :
-                 level === 'easy' ? 'Facile' :
-                 level === 'medium' ? 'Media' : 'Difficile'}
+                {level === 'all' ? 'Tutte' : level.charAt(0).toUpperCase() + level.slice(1)}
               </button>
             ))}
           </div>
@@ -83,26 +151,17 @@ const Exercises = () => {
           >
             <div className="p-5">
               <div className="flex justify-between items-start mb-3">
-                <h3 className="font-medium">{exercise.title}</h3>
-                <div className={`text-xs px-2 py-0.5 rounded-full ${
-                  exercise.difficulty === 'easy'
-                    ? 'bg-success/20 text-success'
-                    : exercise.difficulty === 'medium'
-                      ? 'bg-warning/20 text-warning'
-                      : 'bg-error/20 text-error'
-                }`}>
-                  {exercise.difficulty === 'easy' ? 'Facile' :
-                   exercise.difficulty === 'medium' ? 'Media' : 'Difficile'}
+                <h3 className="font-medium">{exercise.topic}</h3>
+                <div className="flex items-center gap-2">
+                  <div className={`text-xs px-2 py-0.5 rounded-full ${difficultyColors[exercise.question_data.difficulty]}`}>
+                    {exercise.question_data.difficulty.charAt(0).toUpperCase() + exercise.question_data.difficulty.slice(1)}
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center text-sm text-muted-foreground mb-4">
                 <BookOpen size={16} className="mr-2" />
-                <span>
-                  {exercise.category === 'algebra' ? 'Algebra' :
-                   exercise.category === 'geometry' ? 'Geometria' :
-                   exercise.category === 'analysis' ? 'Analisi' : 'Probabilità'}
-                </span>
+                <span>{exercise.subject}</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -110,12 +169,6 @@ const Exercises = () => {
                   <span className="text-sm text-success flex items-center">
                     <CheckCircle size={14} className="mr-1" />
                     Completato
-                  </span>
-                )}
-                {isSaved(exercise.id) && (
-                  <span className="text-sm text-primary flex items-center">
-                    <Star size={14} className="mr-1" />
-                    Salvato
                   </span>
                 )}
               </div>
@@ -146,4 +199,4 @@ const Exercises = () => {
   );
 };
 
-export default Exercises
+export default Exercises;

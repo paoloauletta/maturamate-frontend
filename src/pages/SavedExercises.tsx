@@ -1,36 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Star, Filter, CheckCircle, Clock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { exercises, Exercise } from '../data/exercises';
+import { Exercise, Difficulty } from '../types/exercises';
+import { getSavedExercises } from '../lib/supabase';
 import { motion } from 'framer-motion';
 
+interface SavedExercise extends Exercise {
+  savedAt: string;
+}
+
+const difficultyColors = {
+  facile: 'bg-success/20 text-success',
+  media: 'bg-warning/20 text-warning',
+  difficile: 'bg-error/20 text-error'
+};
+
 const SavedExercises = () => {
-  const { user } = useUser();
-  const [filter, setFilter] = useState<'all' | 'algebra' | 'geometry' | 'analysis' | 'probability'>('all');
-  const [difficulty, setDifficulty] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
+  const { user, isAuthenticated } = useUser();
+  const [exercises, setExercises] = useState<SavedExercise[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'Algebra' | 'Geometria' | 'Analisi' | 'Probabilità'>('all');
+  const [difficulty, setDifficulty] = useState<'all' | Difficulty>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'difficulty' | 'category'>('recent');
 
-  const savedExercises = exercises.filter(ex => user?.progress.savedExercises.includes(ex.id));
+  useEffect(() => {
+    const fetchSavedExercises = async () => {
+      try {
+        if (!isAuthenticated || !user) {
+          return;
+        }
+        setLoading(true);
+        const data = await getSavedExercises(user.id);
+        console.log('Fetched exercises:', data);
+        setExercises(data);
+      } catch (error) {
+        console.error('Error fetching saved exercises:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSavedExercises();
+  }, [user, isAuthenticated]);
   
-  const filteredExercises = savedExercises.filter(ex => {
-    const matchesCategory = filter === 'all' ? true : ex.category === filter;
-    const matchesDifficulty = difficulty === 'all' ? true : ex.difficulty === difficulty;
+  const filteredExercises = exercises.filter(ex => {
+    const matchesCategory = filter === 'all' ? true : ex.subject === filter;
+    const matchesDifficulty = difficulty === 'all' ? true : ex.question_data.difficulty === difficulty;
     return matchesCategory && matchesDifficulty;
   });
 
   const sortedExercises = [...filteredExercises].sort((a, b) => {
     if (sortBy === 'difficulty') {
-      const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
-      return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
+      const difficultyOrder = { facile: 0, media: 1, difficile: 2 };
+      return difficultyOrder[a.question_data.difficulty] - difficultyOrder[b.question_data.difficulty];
     }
     if (sortBy === 'category') {
-      return a.category.localeCompare(b.category);
+      return a.subject.localeCompare(b.subject);
     }
-    return 0; // 'recent' uses the default order
+    // 'recent' uses the savedAt timestamp
+    return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
   });
 
   const isCompleted = (id: string) => user?.progress.completedExercises.includes(id) || false;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -46,7 +86,7 @@ const SavedExercises = () => {
         <div className="flex-1">
           <h2 className="text-sm font-medium mb-2">Categoria</h2>
           <div className="flex flex-wrap gap-2">
-            {['all', 'algebra', 'geometry', 'analysis', 'probability'].map((category) => (
+            {['all', 'Algebra', 'Geometria', 'Analisi', 'Probabilità'].map((category) => (
               <button
                 key={category}
                 onClick={() => setFilter(category as any)}
@@ -56,10 +96,7 @@ const SavedExercises = () => {
                     : 'border-border hover:border-primary/50 transition-colors'
                 }`}
               >
-                {category === 'all' ? 'Tutte' :
-                 category === 'algebra' ? 'Algebra' :
-                 category === 'geometry' ? 'Geometria' :
-                 category === 'analysis' ? 'Analisi' : 'Probabilità'}
+                {category === 'all' ? 'Tutte' : category}
               </button>
             ))}
           </div>
@@ -68,7 +105,7 @@ const SavedExercises = () => {
         <div className="flex-1">
           <h2 className="text-sm font-medium mb-2">Difficoltà</h2>
           <div className="flex flex-wrap gap-2">
-            {['all', 'easy', 'medium', 'hard'].map((level) => (
+            {['all', 'facile', 'media', 'difficile'].map((level) => (
               <button
                 key={level}
                 onClick={() => setDifficulty(level as any)}
@@ -78,9 +115,7 @@ const SavedExercises = () => {
                     : 'border-border hover:border-primary/50 transition-colors'
                 }`}
               >
-                {level === 'all' ? 'Tutte' :
-                 level === 'easy' ? 'Facile' :
-                 level === 'medium' ? 'Media' : 'Difficile'}
+                {level === 'all' ? 'Tutte' : level.charAt(0).toUpperCase() + level.slice(1)}
               </button>
             ))}
           </div>
@@ -122,26 +157,15 @@ const SavedExercises = () => {
           >
             <Link to={`/exercises/${exercise.id}`} className="block p-5">
               <div className="flex justify-between items-start mb-3">
-                <h3 className="font-medium">{exercise.title}</h3>
-                <div className={`text-xs px-2 py-0.5 rounded-full ${
-                  exercise.difficulty === 'easy'
-                    ? 'bg-success/20 text-success'
-                    : exercise.difficulty === 'medium'
-                      ? 'bg-warning/20 text-warning'
-                      : 'bg-error/20 text-error'
-                }`}>
-                  {exercise.difficulty === 'easy' ? 'Facile' :
-                   exercise.difficulty === 'medium' ? 'Media' : 'Difficile'}
+                <h3 className="font-medium">{exercise.topic}</h3>
+                <div className={`text-xs px-2 py-0.5 rounded-full ${difficultyColors[exercise.question_data.difficulty]}`}>
+                  {exercise.question_data.difficulty.charAt(0).toUpperCase() + exercise.question_data.difficulty.slice(1)}
                 </div>
               </div>
 
               <div className="flex items-center text-sm text-muted-foreground mb-4">
                 <BookOpen size={16} className="mr-2" />
-                <span>
-                  {exercise.category === 'algebra' ? 'Algebra' :
-                   exercise.category === 'geometry' ? 'Geometria' :
-                   exercise.category === 'analysis' ? 'Analisi' : 'Probabilità'}
-                </span>
+                <span>{exercise.subject}</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -156,10 +180,6 @@ const SavedExercises = () => {
                     Da completare
                   </span>
                 )}
-                <span className="text-sm text-primary flex items-center">
-                  <Star size={14} className="mr-1" fill="currentColor" />
-                  Salvato
-                </span>
               </div>
             </Link>
           </motion.div>

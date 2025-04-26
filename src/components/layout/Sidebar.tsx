@@ -49,24 +49,28 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
         </div>
         
         <div className="py-4 overflow-y-auto h-[calc(100vh-4rem)]">
-          <div className="px-4 mb-8">
-            <div className="flex items-center mb-4">
+          <div className="border-border p-4 pt-0 mt-auto">
+            <Link to="/profile" className={`flex items-center px-4 py-3 rounded-md text-base ${
+                location.pathname.includes('/profile')
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground transition-colors'
+              }`}>
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
-                {user?.name.charAt(0).toUpperCase()}
+                {user?.email?.charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="font-medium">{user?.name}</div>
-                <div className="text-sm text-muted-foreground">{user?.plan === 'premium' ? 'Piano Premium' : user?.plan === 'classe' ? 'Piano Classe' : 'Piano Free'}</div>
+                <div className="text-sm text-muted-foreground">{user?.plan === 'premium' ? 'Piano Premium' : 'Piano Free'}</div>
               </div>
-            </div>
+            </Link>
             
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="rounded-md bg-muted p-2 text-center">
-                <div className="text-sm font-medium">{user?.progress.streak}</div>
+                <div className="text-sm font-medium">{user?.progress.streak || 0}</div>
                 <div className="text-xs text-muted-foreground">Giorni</div>
               </div>
               <div className="rounded-md bg-muted p-2 text-center">
-                <div className="text-sm font-medium">{user?.aiCreditsRemaining}</div>
+                <div className="text-sm font-medium">{user?.aiCreditsRemaining || 0}</div>
                 <div className="text-xs text-muted-foreground">Crediti AI</div>
               </div>
             </div>
@@ -108,7 +112,10 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
               <ClipboardCheck size={20} className="mr-3" />
               Simulazioni
             </Link>
-            
+          </nav>
+          
+          <div className="mt-8 px-2">
+            <div className="px-4 mb-2 text-xs font-semibold text-muted-foreground">Il Tuo Studio</div>
             <Link
               to="/tutor"
               className={`flex items-center px-4 py-3 rounded-md text-base ${
@@ -120,25 +127,14 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
               <BrainCircuit size={20} className="mr-3" />
               Tutor Virtuale
             </Link>
-          </nav>
-          
-          <div className="mt-8 px-2">
-            <div className="px-4 mb-2 text-xs font-semibold text-muted-foreground">Il Tuo Studio</div>
-            <Link
-              to="/profile"
-              className={`flex items-center px-4 py-3 rounded-md text-base ${
-                location.pathname === '/profile'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground transition-colors'
-              }`}
-            >
-              <User size={20} className="mr-3" />
-              Il Tuo Profilo
-            </Link>
             
             <Link
               to="/saved"
-              className={`flex items-center px-4 py-3 rounded-md text-base text-muted-foreground hover:bg-muted hover:text-foreground transition-colors`}
+              className={`flex items-center px-4 py-3 rounded-md text-base ${
+                location.pathname === '/saved'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground transition-colors'
+              }`}
             >
               <Star size={20} className="mr-3" />
               Esercizi Salvati
@@ -146,7 +142,11 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
             
             <Link
               to="/progress"
-              className={`flex items-center px-4 py-3 rounded-md text-base text-muted-foreground hover:bg-muted hover:text-foreground transition-colors`}
+              className={`flex items-center px-4 py-3 rounded-md text-base ${
+                location.pathname === '/progress'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground transition-colors'
+              }`}
             >
               <BarChart size={20} className="mr-3" />
               Statistiche

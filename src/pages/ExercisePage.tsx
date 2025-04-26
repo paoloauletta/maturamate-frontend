@@ -5,19 +5,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 import { useUser } from '../context/UserContext';
-import { exercises, Exercise } from '../data/exercises';
+import { Exercise } from '../types/exercises';
+import { getExercises, toggleExerciseSaved } from '../lib/supabase/exercises';
+
+const difficultyColors = {
+  facile: 'bg-success/20 text-success',
+  media: 'bg-warning/20 text-warning',
+  difficile: 'bg-error/20 text-error'
+};
 
 const ExercisePage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { 
-    user, 
-    completeExercise, 
-    saveExercise, 
-    useAiCredit 
+    user,
+    isAuthenticated,
+    completeExercise,
+    useAiCredit,
+    updateProgress
   } = useUser();
   
   const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [showSolution, setShowSolution] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -26,21 +35,47 @@ const ExercisePage = () => {
   const [userSolution, setUserSolution] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   useEffect(() => {
-    // Find the exercise in our data
-    const currentExercise = exercises.find(ex => ex.id === id);
-    
-    if (currentExercise) {
-      setExercise(currentExercise);
-      setIsSaved(user?.progress.savedExercises.includes(currentExercise.id) || false);
+    const fetchExercises = async () => {
+      if (!isAuthenticated || exercises.length > 0) return;
+      
+      try {
+        setLoading(true);
+        const data = await getExercises();
+        setExercises(data);
+        const currentExercise = data.find(ex => ex.id === id);
+        if (currentExercise) {
+          setExercise(currentExercise);
+        }
+      } catch (error) {
+        console.error('Error fetching exercises:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExercises();
+  }, [id, isAuthenticated, exercises.length]);
+
+  useEffect(() => {
+    if (exercises.length > 0 && id) {
+      const currentExercise = exercises.find(ex => ex.id === id);
+      if (currentExercise) {
+        setExercise(currentExercise);
+      }
     }
-    
-    setLoading(false);
-  }, [id, user?.progress.savedExercises]);
+  }, [id, exercises]);
+
+  useEffect(() => {
+    if (user?.progress?.savedExercises && id) {
+      const isSavedExercise = user.progress.savedExercises.includes(id);
+      setIsSaved(isSavedExercise);
+    }
+  }, [user?.progress?.savedExercises, id]);
 
   const handleNext = () => {
-    // Find index of current exercise and navigate to next
     const currentIndex = exercises.findIndex(ex => ex.id === id);
     if (currentIndex < exercises.length - 1) {
       navigate(`/exercises/${exercises[currentIndex + 1].id}`);
@@ -51,7 +86,6 @@ const ExercisePage = () => {
   };
 
   const handlePrevious = () => {
-    // Find index of current exercise and navigate to previous
     const currentIndex = exercises.findIndex(ex => ex.id === id);
     if (currentIndex > 0) {
       navigate(`/exercises/${exercises[currentIndex - 1].id}`);
@@ -75,7 +109,6 @@ const ExercisePage = () => {
     setIsCorrect(true);
     completeExercise(id || '');
     
-    // Add congratulatory message if chat is open
     if (chatOpen) {
       setChatMessages(prev => [
         ...prev,
@@ -89,14 +122,12 @@ const ExercisePage = () => {
 
   const handleMarkAsIncorrect = () => {
     setIsCorrect(false);
-    // Open chat if not already open
     if (!chatOpen) {
       handleOpenChat();
     }
   };
 
   const handleOpenChat = () => {
-    // Check if user has AI credits
     if (!useAiCredit()) {
       alert('Hai esaurito i crediti AI per oggi. Aggiorna il tuo piano per continuare a usare il tutor virtuale.');
       return;
@@ -108,7 +139,7 @@ const ExercisePage = () => {
       setChatMessages([
         { 
           sender: 'tutor', 
-          text: `Sono qui per aiutarti con questo esercizio su "${exercise?.title}". Prima di tutto, qual è stata la tua risposta? Così posso vedere dove potresti aver avuto difficoltà.` 
+          text: `Ciao! Sono qui per aiutarti con questo esercizio di ${exercise?.subject}. Mi mostri come hai provato a risolverlo? Così posso capire dove posso esserti più utile.` 
         }
       ]);
     }
@@ -117,39 +148,34 @@ const ExercisePage = () => {
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
     
-    // Add user message
     setChatMessages(prev => [
       ...prev,
       { sender: 'user', text: inputValue }
     ]);
     
-    // Check if this is the first user message (their solution)
     if (chatMessages.length === 1) {
       setUserSolution(inputValue);
     }
     
-    // Generate AI response
     setTimeout(() => {
       let response = '';
       
       if (chatMessages.length === 1) {
-        // First user message - compare their solution
-        response = `Grazie per aver condiviso la tua soluzione. Confrontandola con la soluzione corretta, noto che ${
+        response = `Ho dato un'occhiata alla tua soluzione. ${
           isCorrect === false 
-            ? 'ci sono alcuni punti da chiarire. ' 
-            : 'stai procedendo bene, ma possiamo approfondire. '
+            ? 'Vedo alcuni punti che possiamo migliorare insieme. ' 
+            : 'Stai procedendo nella giusta direzione, ma possiamo approfondire alcuni aspetti. '
         }
         
-Ecco un suggerimento utile: ${exercise?.hints[0]}
+Ecco un suggerimento: ${exercise?.solution_data.steps[0]}
 
-Vuoi che ti spieghi passo per passo come risolvere questo problema?`;
+Vuoi che ti guidi passo per passo nella risoluzione?`;
       } else {
-        // Follow-up responses
-        response = `Ecco come affronterei questo esercizio:
+        response = `Ecco come procederei per risolvere questo esercizio:
         
-${exercise?.solution.substring(0, 150)}...
+${exercise?.solution_data.final_answer.substring(0, 150)}...
 
-Se hai domande specifiche su qualche passaggio, sentiti libero di chiedere!`;
+Se hai dubbi su qualche passaggio, chiedimi pure!`;
       }
       
       setChatMessages(prev => [
@@ -161,9 +187,43 @@ Se hai domande specifiche su qualche passaggio, sentiti libero di chiedere!`;
     setInputValue('');
   };
 
-  const handleToggleSaved = () => {
-    saveExercise(id || '');
-    setIsSaved(!isSaved);
+  const handleToggleSaved = async () => {
+    if (!user || !id || isToggling) return;
+    
+    setIsToggling(true);
+    const newSavedState = !isSaved;
+    
+    try {
+      // Update local state immediately for better UX
+      setIsSaved(newSavedState);
+      
+      // Call the API
+      const isNowSaved = await toggleExerciseSaved(user.id, id);
+      
+      // Get current saved exercises
+      const currentSaved = user.progress.savedExercises || [];
+      
+      // Prepare the updated list
+      const updatedSaved = isNowSaved
+        ? [...new Set([...currentSaved, id])] // Use Set to prevent duplicates
+        : currentSaved.filter(savedId => savedId !== id);
+      
+      // Update the user context with the new list
+      await updateProgress({
+        ...user.progress,
+        savedExercises: updatedSaved
+      });
+      
+      // Update local state to match the server state
+      setIsSaved(isNowSaved);
+      
+    } catch (error) {
+      console.error('Error toggling exercise saved status:', error);
+      // Revert the local state in case of error
+      setIsSaved(!newSavedState);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   if (loading) {
@@ -202,24 +262,16 @@ Se hai domande specifiche su qualche passaggio, sentiti libero di chiedere!`;
           >
             <ChevronLeft size={20} />
           </button>
-          <h1 className="text-2xl font-bold">{exercise.title}</h1>
+          <h1 className="text-2xl font-bold">{exercise.topic}</h1>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <span className={`px-2 py-1 text-xs rounded-full ${
-            exercise.difficulty === 'easy' 
-              ? 'bg-success/20 text-success' 
-              : exercise.difficulty === 'medium'
-                ? 'bg-warning/20 text-warning'
-                : 'bg-error/20 text-error'
-          }`}>
-            {exercise.difficulty === 'easy' ? 'Facile' : exercise.difficulty === 'medium' ? 'Medio' : 'Difficile'}
-          </span>
+          <div className={`px-2 py-1 text-xs rounded-full ${difficultyColors[exercise.question_data.difficulty]}`}>
+            {exercise.question_data.difficulty.charAt(0).toUpperCase() + exercise.question_data.difficulty.slice(1)}
+          </div>
           
           <span className="px-2 py-1 text-xs rounded-full bg-primary/20 text-primary">
-            {exercise.category === 'algebra' ? 'Algebra' : 
-             exercise.category === 'geometry' ? 'Geometria' : 
-             exercise.category === 'analysis' ? 'Analisi' : 'Probabilità'}
+            {exercise.subject}
           </span>
           
           <button
@@ -231,16 +283,16 @@ Se hai domande specifiche su qualche passaggio, sentiti libero di chiedere!`;
           </button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main exercise area */}
         <div className="lg:col-span-2">
-          <div className="border rounded-lg shadow-sm bg-card mb-6">
+        <div className="border rounded-lg shadow-sm bg-card mb-6">
             {/* Exercise content */}
             <div className="p-6">
               <h2 className="text-lg font-medium mb-4">Esercizio</h2>
               <div className="latex-container">
-                <Latex>{exercise.content}</Latex>
+                <Latex>{exercise.question_data.question}</Latex>
               </div>
             </div>
             
@@ -276,7 +328,8 @@ Se hai domande specifiche su qualche passaggio, sentiti libero di chiedere!`;
                     className="overflow-hidden"
                   >
                     <div className="bg-muted rounded-md p-4 latex-container">
-                      <Latex>{exercise.solution}</Latex>
+                      <Latex>{exercise.solution_data.steps}</Latex>
+                      <Latex>{exercise.solution_data.final_answer}</Latex>
                     </div>
                     
                     {isCorrect === null && (
@@ -335,8 +388,8 @@ Se hai domande specifiche su qualche passaggio, sentiti libero di chiedere!`;
             </div>
           </div>
 
-          {/* Navigation buttons */}
-          <div className="flex justify-between">
+        {/* Navigation buttons */}
+        <div className="flex justify-between">
             <button
               onClick={handlePrevious}
               className="btn-outline flex items-center"
